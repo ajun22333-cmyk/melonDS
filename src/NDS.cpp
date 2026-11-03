@@ -155,6 +155,9 @@ u16 IPCFIFOCnt9, IPCFIFOCnt7;
 FIFO<u32, 16> IPCFIFO9; // FIFO in which the ARM9 writes
 FIFO<u32, 16> IPCFIFO7;
 
+SoundFifoHook SoundFifoCallback = nullptr;
+void* SoundFifoUserData = nullptr;
+
 u16 DivCnt;
 u32 DivNumerator[2];
 u32 DivDenominator[2];
@@ -172,6 +175,12 @@ u16 RCnt;
 bool Running;
 
 bool RunningGame;
+
+void SetSoundFifoHook(SoundFifoHook hook, void* userData)
+{
+    SoundFifoCallback = hook;
+    SoundFifoUserData = userData;
+}
 
 void DivDone(u32 param);
 void SqrtDone(u32 param);
@@ -3643,6 +3652,8 @@ void ARM9IOWrite32(u32 addr, u32 val)
             {
                 bool wasempty = IPCFIFO9.IsEmpty();
                 IPCFIFO9.Write(val);
+                if (SoundFifoCallback)
+                    SoundFifoCallback(val, SoundFifoUserData);
                 if ((IPCFIFOCnt7 & 0x0400) && wasempty)
                     SetIRQ(1, IRQ_IPCRecv);
             }
