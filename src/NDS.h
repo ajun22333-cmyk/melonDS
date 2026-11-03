@@ -243,6 +243,10 @@ void LoadSave(const u8* savedata, u32 savelen);
 void EjectCart();
 bool CartInserted();
 
+// Receives ARM9-to-ARM7 IPC FIFO words for external sound-command handling.
+using SoundFifoHook = void (*)(u32 value, void* userData);
+void SetSoundFifoHook(SoundFifoHook hook, void* userData);
+
 bool NeedsDirectBoot();
 void SetupDirectBoot(std::string romname);
 
