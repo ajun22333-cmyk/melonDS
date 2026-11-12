@@ -106,6 +106,7 @@ void SoftRenderer::Reset()
     memset(AttrBuffer, 0, BufferSize * 2 * 4);
 
     PrevIsShadowMask = false;
+    ForceNextRender = false;
 
     SetupRenderThread();
 }
@@ -1657,6 +1658,29 @@ void SoftRenderer::RenderFrame()
     bool texPalChanged = GPU::MakeVRAMFlat_TexPalCoherent(texPalDirty);
 
     FrameIdentical = !(textureChanged || texPalChanged) && RenderFrameIdentical;
+
+    // If this frame will not be displayed, avoid rasterizing the 3D image.
+    // Keep texture cache coherence above, and force a redraw on the next
+    // displayed frame so the cached framebuffer can never become stale.
+    if (GPU::Skip2DRender && !(GPU::GPU2D_A.CaptureCnt & (1<<31)))
+    {
+        ForceNextRender = true;
+
+        if (RenderThreadRunning.load(std::memory_order_relaxed))
+        {
+            // The render worker is intentionally not queued for this frame.
+            // Unblock the frame-end synchronization normally completed by it.
+            Platform::Semaphore_Post(Sema_ScanlineCount, 192);
+            Platform::Semaphore_Post(Sema_RenderDone);
+        }
+        return;
+    }
+
+    if (ForceNextRender)
+    {
+        FrameIdentical = false;
+        ForceNextRender = false;
+    }
 
     if (RenderThreadRunning.load(std::memory_order_relaxed))
     {
