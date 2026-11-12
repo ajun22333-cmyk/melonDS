@@ -84,6 +84,7 @@ bool SoftRenderer::Init()
     Sema_ScanlineCount = Platform::Semaphore_Create();
 
     Threaded = false;
+    SkipFrame = false;
     RenderThreadRunning = false;
     RenderThreadRendering = false;
 
@@ -107,6 +108,7 @@ void SoftRenderer::Reset()
 
     PrevIsShadowMask = false;
     ForceNextRender = false;
+    SkipFrame = false;
 
     SetupRenderThread();
 }
@@ -1645,7 +1647,9 @@ void SoftRenderer::RenderPolygons(bool threaded, Polygon** polygons, int npolys)
 
 void SoftRenderer::VCount144()
 {
-    if (RenderThreadRunning.load(std::memory_order_relaxed) && !GPU3D::AbortFrame)
+    // A skipped frame never queued work on the render thread, so there is
+    // no completion semaphore to wait for at VBlank.
+    if (RenderThreadRunning.load(std::memory_order_relaxed) && !SkipFrame && !GPU3D::AbortFrame)
         Platform::Semaphore_Wait(Sema_RenderDone);
 }
 
@@ -1664,17 +1668,15 @@ void SoftRenderer::RenderFrame()
     // displayed frame so the cached framebuffer can never become stale.
     if (GPU::Skip2DRender && !(GPU::GPU2D_A.CaptureCnt & (1<<31)))
     {
+        // Do not queue the worker for a frame the frontend will not display.
+        // GetLine() and VCount144() also skip their waits for this frame,
+        // instead of fabricating semaphore posts from the emulation thread.
+        SkipFrame = true;
         ForceNextRender = true;
-
-        if (RenderThreadRunning.load(std::memory_order_relaxed))
-        {
-            // The render worker is intentionally not queued for this frame.
-            // Unblock the frame-end synchronization normally completed by it.
-            Platform::Semaphore_Post(Sema_ScanlineCount, 192);
-            Platform::Semaphore_Post(Sema_RenderDone);
-        }
         return;
     }
+
+    SkipFrame = false;
 
     if (ForceNextRender)
     {
@@ -1723,7 +1725,7 @@ void SoftRenderer::RenderThreadFunc()
 
 u32* SoftRenderer::GetLine(int line)
 {
-    if (RenderThreadRunning.load(std::memory_order_relaxed))
+    if (RenderThreadRunning.load(std::memory_order_relaxed) && !SkipFrame)
     {
         if (line < 192)
             Platform::Semaphore_Wait(Sema_ScanlineCount);
