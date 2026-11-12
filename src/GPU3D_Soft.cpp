@@ -1653,17 +1653,8 @@ void SoftRenderer::VCount144()
 
 void SoftRenderer::RenderFrame()
 {
-    auto textureDirty = GPU::VRAMDirty_Texture.DeriveState(GPU::VRAMMap_Texture);
-    auto texPalDirty = GPU::VRAMDirty_TexPal.DeriveState(GPU::VRAMMap_TexPal);
-
-    bool textureChanged = GPU::MakeVRAMFlat_TextureCoherent(textureDirty);
-    bool texPalChanged = GPU::MakeVRAMFlat_TexPalCoherent(texPalDirty);
-
-    FrameIdentical = !(textureChanged || texPalChanged) && RenderFrameIdentical;
-
-    // If this frame will not be displayed, avoid rasterizing the 3D image.
-    // Keep texture cache coherence above, and force a redraw on the next
-    // displayed frame so the cached framebuffer can never become stale.
+    // The frontend will discard this frame. Defer texture cache coherence
+    // until the next displayed frame, when the updated cache is needed.
     if (GPU::Skip2DRender && !(GPU::GPU2D_A.CaptureCnt & (1<<31)))
     {
         // No worker job is queued for this frame. GetLine() and VCount144()
@@ -1671,6 +1662,14 @@ void SoftRenderer::RenderFrame()
         ForceNextRender = true;
         return;
     }
+
+    auto textureDirty = GPU::VRAMDirty_Texture.DeriveState(GPU::VRAMMap_Texture);
+    auto texPalDirty = GPU::VRAMDirty_TexPal.DeriveState(GPU::VRAMMap_TexPal);
+
+    bool textureChanged = GPU::MakeVRAMFlat_TextureCoherent(textureDirty);
+    bool texPalChanged = GPU::MakeVRAMFlat_TexPalCoherent(texPalDirty);
+
+    FrameIdentical = !(textureChanged || texPalChanged) && RenderFrameIdentical;
 
     if (ForceNextRender)
     {
