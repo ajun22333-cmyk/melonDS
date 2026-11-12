@@ -502,6 +502,7 @@ private:
     bool Enabled;
 
     bool FrameIdentical;
+    bool ForceNextRender;
 
     // threading
 
