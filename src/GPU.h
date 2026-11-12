@@ -32,6 +32,7 @@ namespace GPU
 {
 
 extern u16 VCount;
+extern bool Skip2DRender;
 extern u16 TotalScanlines;
 
 extern u16 DispStat[2];
