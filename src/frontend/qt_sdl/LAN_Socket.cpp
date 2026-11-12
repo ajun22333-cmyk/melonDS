@@ -16,6 +16,20 @@
     with melonDS. If not, see http://www.gnu.org/licenses/.
 */
 
+// LAN-over-IP is not used by the iOS Delta frontend. The bundled libslirp
+// headers are not part of the iOS build, so provide inert stubs on Apple
+// platforms while retaining the full implementation elsewhere.
+#if defined(__APPLE__)
+#include "LAN_Socket.h"
+
+namespace LAN_Socket
+{
+bool Init() { return false; }
+void DeInit() {}
+int SendPacket(u8* data, int len) { return 0; }
+int RecvPacket(u8* data) { return 0; }
+}
+#else
 // indirect LAN interface, powered by BSD sockets.
 
 #include <stdio.h>
@@ -536,3 +550,5 @@ int RecvPacket(u8* data)
 }
 
 }
+
+#endif // __APPLE__

@@ -39,6 +39,7 @@ u32 NextVCount;
 u16 TotalScanlines;
 
 bool RunFIFO;
+bool Skip2DRender = false;
 
 u16 DispStat[2], VMatch[2];
 
@@ -201,6 +202,7 @@ void ResetVRAMCache()
 
 void Reset()
 {
+    Skip2DRender = false;
     VCount = 0;
     NextVCount = -1;
     TotalScanlines = 0;
@@ -1031,6 +1033,11 @@ void StartFrame()
     StartScanline(0);
 }
 
+void SetSkip2DRender(bool skip)
+{
+    Skip2DRender = skip;
+}
+
 void StartHBlank(u32 line)
 {
     DispStat[0] |= (1<<1);
@@ -1042,8 +1049,19 @@ void StartHBlank(u32 line)
         // note: this should start 48 cycles after the scanline start
         if (line < 192)
         {
-            GPU2D_Renderer->DrawScanline(line, &GPU2D_A);
-            GPU2D_Renderer->DrawScanline(line, &GPU2D_B);
+            // When the frontend drops this frame, skip 2D pixel composition.
+            // Keep mosaic state updates and sprite pre-rendering intact.
+            // Display capture depends on rendered pixels, so never skip it.
+            if (!Skip2DRender || (GPU2D_A.CaptureCnt & (1<<31)))
+            {
+                GPU2D_Renderer->DrawScanline(line, &GPU2D_A);
+                GPU2D_Renderer->DrawScanline(line, &GPU2D_B);
+            }
+            else
+            {
+                GPU2D_A.UpdateMosaicCounters(line);
+                GPU2D_B.UpdateMosaicCounters(line);
+            }
         }
 
         // sprites are pre-rendered one scanline in advance

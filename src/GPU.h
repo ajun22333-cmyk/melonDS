@@ -609,6 +609,7 @@ void StartFrame();
 void FinishFrame(u32 lines);
 void StartScanline(u32 line);
 void StartHBlank(u32 line);
+void SetSkip2DRender(bool skip);
 
 void DisplayFIFO(u32 x);
 
