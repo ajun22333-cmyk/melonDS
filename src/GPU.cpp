@@ -1064,8 +1064,11 @@ void StartHBlank(u32 line)
             }
         }
 
-        // sprites are pre-rendered one scanline in advance
-        if (line < 191)
+        // Sprite lines are only consumed by a displayed frame. During a
+        // discarded frame, defer their preparation; line 0 is still prepared
+        // in VBlank below, and each later line is prepared by the visible frame.
+        // Display capture still needs the complete sprite data.
+        if (line < 191 && (!Skip2DRender || (GPU2D_A.CaptureCnt & (1<<31))))
         {
             GPU2D_Renderer->DrawSprites(line+1, &GPU2D_A);
             GPU2D_Renderer->DrawSprites(line+1, &GPU2D_B);
