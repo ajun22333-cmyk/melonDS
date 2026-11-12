@@ -1647,7 +1647,7 @@ void SoftRenderer::VCount144()
 {
     // A skipped frame never queued work on the render thread, so there is
     // no completion semaphore to wait for at VBlank.
-    if (RenderThreadRunning.load(std::memory_order_relaxed) && !GPU::Skip2DRender && !GPU3D::AbortFrame)
+    if (RenderThreadRunning.load(std::memory_order_relaxed) && (!GPU::Skip2DRender || (GPU::GPU2D_A.CaptureCnt & (1<<31))) && !GPU3D::AbortFrame)
         Platform::Semaphore_Wait(Sema_RenderDone);
 }
 
@@ -1719,7 +1719,7 @@ void SoftRenderer::RenderThreadFunc()
 
 u32* SoftRenderer::GetLine(int line)
 {
-    if (RenderThreadRunning.load(std::memory_order_relaxed) && !GPU::Skip2DRender)
+    if (RenderThreadRunning.load(std::memory_order_relaxed) && (!GPU::Skip2DRender || (GPU::GPU2D_A.CaptureCnt & (1<<31))))
     {
         if (line < 192)
             Platform::Semaphore_Wait(Sema_ScanlineCount);
