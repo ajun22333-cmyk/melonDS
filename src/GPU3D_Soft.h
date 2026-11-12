@@ -503,7 +503,6 @@ private:
 
     bool FrameIdentical;
     bool ForceNextRender;
-    bool SkipFrame;
 
     // threading
 
