@@ -73,6 +73,11 @@ void SetProfileBreakdownEnabled(bool enabled)
     }
 }
 
+bool IsProfileBreakdownEnabled()
+{
+    return ProfileBreakdownEnabled;
+}
+
 void AddARM9DetailProfile(double fetch, double execute, double post)
 {
     if (!ProfileBreakdownEnabled) return;
