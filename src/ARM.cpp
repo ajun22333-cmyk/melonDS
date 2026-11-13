@@ -650,6 +650,8 @@ void ARMv5::Execute()
             {
                 NDS::ARM9Timestamp = NDS::ARM9Target;
             }
+            if (profileDetail)
+                profilePostMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - detailPostStart).count();
             break;
         }
         /*if (NDS::IF[0] & NDS::IE[0])
