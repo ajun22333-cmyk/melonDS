@@ -254,7 +254,7 @@ bool LoadGBACart(const u8* romdata, u32 romlen, const u8* savedata, u32 savelen)
 void LoadGBAAddon(int type);
 void EjectGBACart();
 
-u32 RunFrame();
+// Diagnostic profiling is active only when explicitly enabled for a sampled frame.\nvoid SetProfileBreakdownEnabled(bool enabled);\nvoid GetProfileBreakdown(double* arm9, double* arm7, double* gpu3d);\n\nu32 RunFrame();
 
 void TouchScreen(u16 x, u16 y);
 void ReleaseScreen();
