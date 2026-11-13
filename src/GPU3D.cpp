@@ -388,6 +388,7 @@ void Reset()
 void DoSavestate(Savestate* file)
 {
     file->Section("GP3D");
+    if (file->Error) return;
 
     CmdFIFO.DoSavestate(file);
     CmdPIPE.DoSavestate(file);
@@ -478,12 +479,14 @@ void DoSavestate(Savestate* file)
         file->VarArray(vtx->FinalColor, sizeof(s32)*3);
     }
 
+    if (file->Error) return;
+
     if (file->Saving)
     {
         u32 id;
         if (LastStripPolygon)
         {
-            const ptrdiff_t index = LastStripPolygon - (&PolygonRAM[0]);
+            const auto index = LastStripPolygon - (&PolygonRAM[0]);
             if (index < 0 || index >= 2048*2) { file->Error = true; return; }
             id = (u32)index;
         }
@@ -536,7 +539,7 @@ void DoSavestate(Savestate* file)
                 u32 id;
                 if (ptr)
                 {
-                    const ptrdiff_t index = ptr - (&VertexRAM[0]);
+                    const auto index = ptr - (&VertexRAM[0]);
                     if (index < 0 || index >= 6144*2) { file->Error = true; return; }
                     id = (u32)index;
                 }
@@ -587,6 +590,7 @@ void DoSavestate(Savestate* file)
 
         file->Var32(&poly->SortKey);
 
+        if (file->Error) return;
         if (!file->Saving)
         {
             if (file->Error) return;
@@ -616,6 +620,7 @@ void DoSavestate(Savestate* file)
 
     if (!file->Saving)
     {
+        if (file->Error || CurRAMBank > 1) { file->Error = true; return; }
         ClipMatrixDirty = true;
         UpdateClipMatrix();
 
