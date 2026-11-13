@@ -863,6 +863,7 @@ bool DoSavestate_Scheduler(Savestate* file)
 bool DoSavestate(Savestate* file)
 {
     file->Section("NDSG");
+    if (file->Error) return false;
 
     if (file->Saving)
     {
@@ -871,8 +872,9 @@ bool DoSavestate(Savestate* file)
     }
     else
     {
-        u32 console;
+        u32 console = 0;
         file->Var32(&console);
+        if (file->Error) return false;
         if (console != ConsoleType)
             return false;
     }
