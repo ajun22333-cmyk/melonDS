@@ -298,6 +298,8 @@ void Savestate::Var64(u64* var)
 
 void Savestate::Bool32(bool* var)
 {
+    if (Error) return;
+
     // for compability
     if (Saving)
     {
