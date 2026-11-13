@@ -226,7 +226,7 @@ void Savestate::Section(const char* magic)
 
             if (memcmp(sectionMagic, magic, 4) == 0)
             {
-                if (fseek(file, 12, SEEK_CUR) != 0)
+                if (fseek(file, 8, SEEK_CUR) != 0)
                     Error = true;
                 return;
             }
