@@ -61,6 +61,19 @@ public:
 private:
     FILE* file;
     u32 FileSize;
+    u32 SectionEnd;
+
+    bool CanRead(u32 len)
+    {
+        if (Error || Saving) return !Error;
+        long pos = ftell(file);
+        if (pos < 0 || (u64)pos > SectionEnd || (u64)len > (u64)SectionEnd - (u64)pos)
+        {
+            Error = true;
+            return false;
+        }
+        return true;
+    }
 };
 
 #endif // SAVESTATE_H
