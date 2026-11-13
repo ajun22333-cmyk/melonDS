@@ -239,7 +239,6 @@ void Savestate::Section(const char* magic)
         }
     }
 }
-}
 
 void Savestate::Var8(u8* var)
 {
