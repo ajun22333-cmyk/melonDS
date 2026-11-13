@@ -511,6 +511,15 @@ void DoSavestate(Savestate* file)
     file->Var32(&FlushRequest);
     file->Var32(&FlushAttributes);
 
+    if (file->Error) return;
+    if (!file->Saving &&
+        (CurRAMBank > 1 || NumVertices > 6144 || NumPolygons > 2048 ||
+         NumOpaquePolygons > NumPolygons || VertexNum > 4 || VertexNumInPoly > 4))
+    {
+        file->Error = true;
+        return;
+    }
+
     for (int i = 0; i < 6144*2; i++)
     {
         Vertex* vtx = &VertexRAM[i];
