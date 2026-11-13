@@ -39,6 +39,7 @@ void SoftRenderer::StopRenderThread()
         Platform::Semaphore_Post(Sema_RenderStart);
         Platform::Thread_Wait(RenderThread);
         Platform::Thread_Free(RenderThread);
+        RenderJobPending.store(false, std::memory_order_release);
     }
 }
 
@@ -52,16 +53,20 @@ void SoftRenderer::SetupRenderThread()
             RenderThread = Platform::Thread_Create(std::bind(&SoftRenderer::RenderThreadFunc, this));
         }
 
-        // otherwise more than one frame can be queued up at once
-        Platform::Semaphore_Reset(Sema_RenderStart);
-
-        if (RenderThreadRendering)
+        // Finish any outstanding job before resetting its semaphores or
+        // reusing renderer data. Do not infer this from the worker's
+        // RenderThreadRendering flag: the worker may have just been woken.
+        if (RenderJobPending.load(std::memory_order_acquire))
+        {
             Platform::Semaphore_Wait(Sema_RenderDone);
+            RenderJobPending.store(false, std::memory_order_release);
+        }
 
-        Platform::Semaphore_Reset(Sema_RenderDone);
         Platform::Semaphore_Reset(Sema_RenderStart);
+        Platform::Semaphore_Reset(Sema_RenderDone);
         Platform::Semaphore_Reset(Sema_ScanlineCount);
 
+        RenderJobPending.store(true, std::memory_order_release);
         Platform::Semaphore_Post(Sema_RenderStart);
     }
     else
@@ -86,6 +91,7 @@ bool SoftRenderer::Init()
     Threaded = false;
     RenderThreadRunning = false;
     RenderThreadRendering = false;
+    RenderJobPending.store(false, std::memory_order_release);
 
     return true;
 }
@@ -1645,10 +1651,14 @@ void SoftRenderer::RenderPolygons(bool threaded, Polygon** polygons, int npolys)
 
 void SoftRenderer::VCount144()
 {
-    // A skipped frame never queued work on the render thread, so there is
-    // no completion semaphore to wait for at VBlank.
-    if (RenderThreadRunning.load(std::memory_order_relaxed) && (!GPU::Skip2DRender || (GPU::GPU2D_A.CaptureCnt & (1<<31))) && !GPU3D::AbortFrame)
+    // A skipped frame may still have a render job pending from the previous
+    // displayed frame. Wait for that job before the main thread reuses the
+    // renderer's polygon and framebuffer data.
+    if (RenderThreadRunning.load(std::memory_order_relaxed) && RenderJobPending.load(std::memory_order_acquire))
+    {
         Platform::Semaphore_Wait(Sema_RenderDone);
+        RenderJobPending.store(false, std::memory_order_release);
+    }
 }
 
 void SoftRenderer::RenderFrame()
@@ -1679,6 +1689,7 @@ void SoftRenderer::RenderFrame()
 
     if (RenderThreadRunning.load(std::memory_order_relaxed))
     {
+        RenderJobPending.store(true, std::memory_order_release);
         Platform::Semaphore_Post(Sema_RenderStart);
     }
     else if (!FrameIdentical)
