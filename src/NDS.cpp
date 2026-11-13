@@ -818,8 +818,10 @@ bool DoSavestate_Scheduler(Savestate* file)
             }
 
             file->Var32(&funcid);
+            if (file->Error) return false;
             file->Var64(&evt->Timestamp);
             file->Var32(&evt->Param);
+            if (file->Error) return false;
         }
     }
     else
@@ -830,6 +832,7 @@ bool DoSavestate_Scheduler(Savestate* file)
 
             u32 funcid;
             file->Var32(&funcid);
+            if (file->Error) return false;
 
             if (funcid != 0xFFFFFFFF)
             {
@@ -850,6 +853,7 @@ bool DoSavestate_Scheduler(Savestate* file)
 
             file->Var64(&evt->Timestamp);
             file->Var32(&evt->Param);
+            if (file->Error) return false;
         }
     }
 
