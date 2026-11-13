@@ -307,6 +307,7 @@ void Stop()
 void DoSavestate(Savestate* file)
 {
     file->Section("GPUG");
+    if (file->Error) return;
 
     file->Var16(&VCount);
     file->Var32(&NextVCount);
@@ -353,6 +354,7 @@ void DoSavestate(Savestate* file)
 
     if (!file->Saving)
     {
+        if (file->Error) return;
         for (int i = 0; i < 0x20; i++)
             VRAMPtr_ABG[i] = GetUniqueBankPtr(VRAMMap_ABG[i], i << 14);
         for (int i = 0; i < 0x10; i++)
@@ -364,8 +366,11 @@ void DoSavestate(Savestate* file)
     }
 
     GPU2D_A.DoSavestate(file);
+    if (file->Error) return;
     GPU2D_B.DoSavestate(file);
+    if (file->Error) return;
     GPU3D::DoSavestate(file);
+    if (file->Error) return;
 
     ResetVRAMCache();
 }
