@@ -589,10 +589,11 @@ void ARMv5::Execute()
         }
     }
 
+    const bool profileDetail = NDS::IsProfileBreakdownEnabled();
     double profileFetchMs = 0.0, profileExecuteMs = 0.0, profilePostMs = 0.0;
     while (NDS::ARM9Timestamp < NDS::ARM9Target)
     {
-        auto detailFetchStart = std::chrono::steady_clock::now();
+        auto detailFetchStart = profileDetail ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
         auto detailExecuteStart = std::chrono::steady_clock::time_point{};
         if (CPSR & 0x20) // THUMB
         {
@@ -603,8 +604,11 @@ void ARMv5::Execute()
             if (R[15] & 0x2) { NextInstr[1] >>= 16; CodeCycles = 0; }
             else             NextInstr[1] = CodeRead32(R[15], false);
 
-            detailExecuteStart = std::chrono::steady_clock::now();
-            profileFetchMs += std::chrono::duration<double, std::milli>(detailExecuteStart - detailFetchStart).count();
+            if (profileDetail)
+            {
+                detailExecuteStart = std::chrono::steady_clock::now();
+                profileFetchMs += std::chrono::duration<double, std::milli>(detailExecuteStart - detailFetchStart).count();
+            }
             // actually execute
             u32 icode = (CurInstr >> 6) & 0x3FF;
             ARMInterpreter::THUMBInstrTable[icode](this);
@@ -633,8 +637,9 @@ void ARMv5::Execute()
                 AddCycles_C();
         }
 
-        auto detailPostStart = std::chrono::steady_clock::now();
-        profileExecuteMs += std::chrono::duration<double, std::milli>(detailPostStart - detailExecuteStart).count();
+        auto detailPostStart = profileDetail ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+        if (profileDetail)
+            profileExecuteMs += std::chrono::duration<double, std::milli>(detailPostStart - detailExecuteStart).count();
         // TODO optimize this shit!!!
         if (Halted)
         {
@@ -653,7 +658,8 @@ void ARMv5::Execute()
 
         NDS::ARM9Timestamp += Cycles;
         Cycles = 0;
-        profilePostMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - detailPostStart).count();
+        if (profileDetail)
+            profilePostMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - detailPostStart).count();
     }
 
     if (Halted == 2)
