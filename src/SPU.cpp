@@ -719,10 +719,12 @@ void Mix(u32 dummy)
 
     if (Cnt & (1<<15))
     {
-        s32 ch0 = Channels[0]->DoRun();
-        s32 ch1 = Channels[1]->DoRun();
-        s32 ch2 = Channels[2]->DoRun();
-        s32 ch3 = Channels[3]->DoRun();
+        // Disabled channels return zero without changing state. Skip their
+        // dispatch entirely, while preserving zero-valued mixer inputs.
+        s32 ch0 = (Channels[0]->Cnt & (1u<<31)) ? Channels[0]->DoRun() : 0;
+        s32 ch1 = (Channels[1]->Cnt & (1u<<31)) ? Channels[1]->DoRun() : 0;
+        s32 ch2 = (Channels[2]->Cnt & (1u<<31)) ? Channels[2]->DoRun() : 0;
+        s32 ch3 = (Channels[3]->Cnt & (1u<<31)) ? Channels[3]->DoRun() : 0;
 
         // TODO: addition from capture registers
         Channels[0]->PanOutput(ch0, left, right);
@@ -735,8 +737,13 @@ void Mix(u32 dummy)
         {
             Channel* chan = Channels[i];
 
-            s32 channel = chan->DoRun();
-            chan->PanOutput(channel, left, right);
+            // Run() immediately returns for channels whose enable bit is
+            // clear. Avoid the call and pan work for those inactive channels.
+            if (chan->Cnt & (1u<<31))
+            {
+                s32 channel = chan->DoRun();
+                chan->PanOutput(channel, left, right);
+            }
         }
 
         // sound capture
