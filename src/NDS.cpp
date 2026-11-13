@@ -17,6 +17,7 @@
 */
 
 #include <stdio.h>
+#include <chrono>
 #include <string.h>
 #include <inttypes.h>
 #include "NDS.h"
@@ -48,6 +49,30 @@
 
 namespace NDS
 {
+
+// Low-frequency diagnostic profiling, enabled only for selected frames by the iOS bridge.
+static bool ProfileBreakdownEnabled = false;
+static double ProfileARM9Milliseconds = 0.0;
+static double ProfileARM7Milliseconds = 0.0;
+static double ProfileGPU3DMilliseconds = 0.0;
+
+void SetProfileBreakdownEnabled(bool enabled)
+{
+    ProfileBreakdownEnabled = enabled;
+    if (enabled)
+    {
+        ProfileARM9Milliseconds = 0.0;
+        ProfileARM7Milliseconds = 0.0;
+        ProfileGPU3DMilliseconds = 0.0;
+    }
+}
+
+void GetProfileBreakdown(double* arm9, double* arm7, double* gpu3d)
+{
+    if (arm9) *arm9 = ProfileARM9Milliseconds;
+    if (arm7) *arm7 = ProfileARM7Milliseconds;
+    if (gpu3d) *gpu3d = ProfileGPU3DMilliseconds;
+}
 
 // timing notes
 //
@@ -1069,6 +1094,7 @@ u32 RunFrame()
             ARM9Target = target << ARM9ClockShift;
             CurCPU = 0;
 
+            auto arm9ProfileStart = ProfileBreakdownEnabled ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
             if (CPUStop & 0x80000000)
             {
                 // GXFIFO stall
@@ -1094,8 +1120,14 @@ u32 RunFrame()
                     ARM9->Execute();
             }
 
+            if (ProfileBreakdownEnabled)
+                ProfileARM9Milliseconds += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - arm9ProfileStart).count();
+
             RunTimers(0);
+            auto gpu3dProfileStart = ProfileBreakdownEnabled ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
             GPU3D::Run();
+            if (ProfileBreakdownEnabled)
+                ProfileGPU3DMilliseconds += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - gpu3dProfileStart).count();
 
             target = ARM9Timestamp >> ARM9ClockShift;
             CurCPU = 1;
@@ -1103,6 +1135,7 @@ u32 RunFrame()
             while (ARM7Timestamp < target)
             {
                 ARM7Target = target; // might be changed by a reschedule
+                auto arm7ProfileStart = ProfileBreakdownEnabled ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
 
                 if (CPUStop & 0x0FFF0000)
                 {
@@ -1122,6 +1155,8 @@ u32 RunFrame()
                         ARM7->Execute();
                 }
 
+                if (ProfileBreakdownEnabled)
+                    ProfileARM7Milliseconds += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - arm7ProfileStart).count();
                 RunTimers(1);
             }
 
