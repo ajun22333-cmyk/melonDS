@@ -17,6 +17,7 @@
 */
 
 #include <stdio.h>
+#include <string.h>
 #include "Savestate.h"
 #include "Platform.h"
 
