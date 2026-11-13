@@ -256,6 +256,7 @@ void EjectGBACart();
 
 // Diagnostic profiling is active only when explicitly enabled for a sampled frame.
 void SetProfileBreakdownEnabled(bool enabled);
+bool IsProfileBreakdownEnabled();
 void AddARM9DetailProfile(double fetch, double execute, double post);
 void GetProfileBreakdown(double* arm9, double* arm7, double* gpu3d,
                          double* fetch, double* execute, double* post);
