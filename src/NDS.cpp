@@ -55,6 +55,9 @@ static bool ProfileBreakdownEnabled = false;
 static double ProfileARM9Milliseconds = 0.0;
 static double ProfileARM7Milliseconds = 0.0;
 static double ProfileGPU3DMilliseconds = 0.0;
+static double ProfileARM9FetchMilliseconds = 0.0;
+static double ProfileARM9ExecuteMilliseconds = 0.0;
+static double ProfileARM9PostMilliseconds = 0.0;
 
 void SetProfileBreakdownEnabled(bool enabled)
 {
@@ -64,14 +67,29 @@ void SetProfileBreakdownEnabled(bool enabled)
         ProfileARM9Milliseconds = 0.0;
         ProfileARM7Milliseconds = 0.0;
         ProfileGPU3DMilliseconds = 0.0;
+        ProfileARM9FetchMilliseconds = 0.0;
+        ProfileARM9ExecuteMilliseconds = 0.0;
+        ProfileARM9PostMilliseconds = 0.0;
     }
 }
 
-void GetProfileBreakdown(double* arm9, double* arm7, double* gpu3d)
+void AddARM9DetailProfile(double fetch, double execute, double post)
+{
+    if (!ProfileBreakdownEnabled) return;
+    ProfileARM9FetchMilliseconds += fetch;
+    ProfileARM9ExecuteMilliseconds += execute;
+    ProfileARM9PostMilliseconds += post;
+}
+
+void GetProfileBreakdown(double* arm9, double* arm7, double* gpu3d,
+                         double* fetch, double* execute, double* post)
 {
     if (arm9) *arm9 = ProfileARM9Milliseconds;
     if (arm7) *arm7 = ProfileARM7Milliseconds;
     if (gpu3d) *gpu3d = ProfileGPU3DMilliseconds;
+    if (fetch) *fetch = ProfileARM9FetchMilliseconds;
+    if (execute) *execute = ProfileARM9ExecuteMilliseconds;
+    if (post) *post = ProfileARM9PostMilliseconds;
 }
 
 // timing notes
