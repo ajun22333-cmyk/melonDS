@@ -137,7 +137,47 @@ Savestate::Savestate(std::string filename, bool save)
             return;
         }
 
-        fseek(file, 4, SEEK_CUR);
+        if (fseek(file, 4, SEEK_CUR) != 0)
+        {
+            Error = true;
+            return;
+        }
+
+        // Validate the complete section table before any emulator state is
+        // modified. Each section has a 16-byte header and a length including
+        // that header; sections must exactly cover the payload.
+        u32 sectionCount = 0;
+        u64 sectionPos = 16;
+        while (sectionPos < FileSize)
+        {
+            if (sectionPos + 16 > FileSize ||
+                fseek(file, (long)sectionPos, SEEK_SET) != 0)
+            {
+                Error = true;
+                return;
+            }
+
+            char sectionMagic[4];
+            u32 sectionLength = 0;
+            if (fread(sectionMagic, 1, 4, file) != 4 ||
+                fread(&sectionLength, 4, 1, file) != 1 ||
+                sectionLength < 16 ||
+                sectionPos + sectionLength > FileSize)
+            {
+                Error = true;
+                return;
+            }
+
+            sectionPos += sectionLength;
+            sectionCount++;
+        }
+
+        if (sectionPos != FileSize || sectionCount == 0 ||
+            fseek(file, 0x10, SEEK_SET) != 0)
+        {
+            Error = true;
+            return;
+        }
     }
 
     CurSection = -1;
