@@ -1658,6 +1658,10 @@ void SoftRenderer::VCount144()
     {
         Platform::Semaphore_Wait(Sema_RenderDone);
         RenderJobPending.store(false, std::memory_order_release);
+
+        // Skipped frames do not consume per-scanline notifications. Discard
+        // any leftovers before the next displayed frame starts waiting.
+        Platform::Semaphore_Reset(Sema_ScanlineCount);
     }
 }
 
