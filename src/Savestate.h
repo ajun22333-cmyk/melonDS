@@ -60,6 +60,7 @@ public:
 
 private:
     FILE* file;
+    u32 FileSize;
 };
 
 #endif // SAVESTATE_H
