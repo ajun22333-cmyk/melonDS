@@ -481,16 +481,23 @@ void DoSavestate(Savestate* file)
     if (file->Saving)
     {
         u32 id;
-        if (LastStripPolygon) id = (u32)((LastStripPolygon - (&PolygonRAM[0])) / sizeof(Polygon));
-        else                  id = -1;
+        if (LastStripPolygon)
+        {
+            const ptrdiff_t index = LastStripPolygon - (&PolygonRAM[0]);
+            if (index < 0 || index >= 2048*2) { file->Error = true; return; }
+            id = (u32)index;
+        }
+        else id = 0xFFFFFFFF;
         file->Var32(&id);
     }
     else
     {
         u32 id;
         file->Var32(&id);
+        if (file->Error) return;
         if (id == 0xFFFFFFFF) LastStripPolygon = NULL;
-        else          LastStripPolygon = &PolygonRAM[id];
+        else if (id < 2048*2) LastStripPolygon = &PolygonRAM[id];
+        else { file->Error = true; return; }
     }
 
     file->Var32(&CurRAMBank);
@@ -527,8 +534,13 @@ void DoSavestate(Savestate* file)
             {
                 Vertex* ptr = poly->Vertices[j];
                 u32 id;
-                if (ptr) id = (u32)((ptr - (&VertexRAM[0])) / sizeof(Vertex));
-                else     id = -1;
+                if (ptr)
+                {
+                    const ptrdiff_t index = ptr - (&VertexRAM[0]);
+                    if (index < 0 || index >= 6144*2) { file->Error = true; return; }
+                    id = (u32)index;
+                }
+                else id = 0xFFFFFFFF;
                 file->Var32(&id);
             }
         }
@@ -538,8 +550,10 @@ void DoSavestate(Savestate* file)
             {
                 u32 id = -1;
                 file->Var32(&id);
+                if (file->Error) return;
                 if (id == 0xFFFFFFFF) poly->Vertices[j] = NULL;
-                else          poly->Vertices[j] = &VertexRAM[id];
+                else if (id < 6144*2) poly->Vertices[j] = &VertexRAM[id];
+                else { file->Error = true; return; }
             }
         }
 
@@ -575,10 +589,14 @@ void DoSavestate(Savestate* file)
 
         if (!file->Saving)
         {
+            if (file->Error) return;
+            if (poly->NumVertices > 10) { file->Error = true; return; }
+
             poly->Degenerate = false;
 
             for (u32 j = 0; j < poly->NumVertices; j++)
             {
+                if (!poly->Vertices[j]) { file->Error = true; return; }
                 if (poly->Vertices[j]->Position[3] == 0)
                     poly->Degenerate = true;
             }
