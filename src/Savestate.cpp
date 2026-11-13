@@ -53,6 +53,7 @@ Savestate::Savestate(std::string filename, bool save)
 
     Error = false;
     FileSize = 0;
+    SectionEnd = 0;
     file = nullptr;
     CurSection = 0xFFFFFFFF;
 
@@ -101,7 +102,7 @@ Savestate::Savestate(std::string filename, bool save)
         u32 buf = 0;
 
         if (fread(&buf, 4, 1, file) != 1) { Error = true; return; }
-        if (buf != ((u32*)magic)[0])
+        if (memcmp(&buf, magic, 4) != 0)
         {
             printf("savestate: invalid magic %08X\n", buf);
             Error = true;
@@ -228,7 +229,14 @@ void Savestate::Section(const char* magic)
 
             if (memcmp(sectionMagic, magic, 4) == 0)
             {
+                SectionEnd = (u32)((u64)sectionStart + sectionLength);
                 if (fseek(file, 8, SEEK_CUR) != 0)
+                {
+                    Error = true;
+                    return;
+                }
+                long payloadStart = ftell(file);
+                if (payloadStart < 0 || (u64)payloadStart > SectionEnd)
                     Error = true;
                 return;
             }
@@ -245,6 +253,7 @@ void Savestate::Section(const char* magic)
 void Savestate::Var8(u8* var)
 {
     if (Error) return;
+    if (!Saving && !CanRead(1)) return;
 
     if (Saving)
     {
@@ -259,6 +268,7 @@ void Savestate::Var8(u8* var)
 void Savestate::Var16(u16* var)
 {
     if (Error) return;
+    if (!Saving && !CanRead(2)) return;
 
     if (Saving)
     {
@@ -273,6 +283,7 @@ void Savestate::Var16(u16* var)
 void Savestate::Var32(u32* var)
 {
     if (Error) return;
+    if (!Saving && !CanRead(4)) return;
 
     if (Saving)
     {
@@ -287,6 +298,7 @@ void Savestate::Var32(u32* var)
 void Savestate::Var64(u64* var)
 {
     if (Error) return;
+    if (!Saving && !CanRead(8)) return;
 
     if (Saving)
     {
@@ -319,13 +331,14 @@ void Savestate::Bool32(bool* var)
 void Savestate::VarArray(void* data, u32 len)
 {
     if (Error) return;
+    if (!Saving && !CanRead(len)) return;
 
     if (Saving)
     {
-        if (fwrite(data, len, 1, file) != 1) Error = true;
+        if (fwrite(data, 1, len, file) != len) Error = true;
     }
     else
     {
-        if (fread(data, len, 1, file) != 1) Error = true;
+        if (fread(data, 1, len, file) != len) Error = true;
     }
 }
