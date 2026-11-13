@@ -947,8 +947,10 @@ bool DoSavestate(Savestate* file)
     file->Var16(&RCnt);
 
     file->Var8(&WRAMCnt);
+    if (file->Error) return false;
 
     file->Bool32(&RunningGame);
+    if (file->Error) return false;
 
     if (!file->Saving)
     {
@@ -963,22 +965,39 @@ bool DoSavestate(Savestate* file)
     }
 
     for (int i = 0; i < 8; i++)
+    {
         DMAs[i]->DoSavestate(file);
+        if (file->Error) return false;
+    }
 
     ARM9->DoSavestate(file);
+    if (file->Error) return false;
     ARM7->DoSavestate(file);
+    if (file->Error) return false;
 
     NDSCart::DoSavestate(file);
+    if (file->Error) return false;
     if (ConsoleType == 0)
+    {
         GBACart::DoSavestate(file);
+        if (file->Error) return false;
+    }
     GPU::DoSavestate(file);
+    if (file->Error) return false;
     SPU::DoSavestate(file);
+    if (file->Error) return false;
     SPI::DoSavestate(file);
+    if (file->Error) return false;
     RTC::DoSavestate(file);
+    if (file->Error) return false;
     Wifi::DoSavestate(file);
+    if (file->Error) return false;
 
     if (ConsoleType == 1)
+    {
         DSi::DoSavestate(file);
+        if (file->Error) return false;
+    }
 
     if (!file->Saving)
     {
