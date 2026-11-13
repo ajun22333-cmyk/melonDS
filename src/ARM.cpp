@@ -621,8 +621,11 @@ void ARMv5::Execute()
             NextInstr[0] = NextInstr[1];
             NextInstr[1] = CodeRead32(R[15], false);
 
-            detailExecuteStart = std::chrono::steady_clock::now();
-            profileFetchMs += std::chrono::duration<double, std::milli>(detailExecuteStart - detailFetchStart).count();
+            if (profileDetail)
+            {
+                detailExecuteStart = std::chrono::steady_clock::now();
+                profileFetchMs += std::chrono::duration<double, std::milli>(detailExecuteStart - detailFetchStart).count();
+            }
             // actually execute
             if (CheckCondition(CurInstr >> 28))
             {
