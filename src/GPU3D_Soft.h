@@ -510,7 +510,6 @@ private:
     Platform::Thread* RenderThread;
     std::atomic_bool RenderThreadRunning;
     std::atomic_bool RenderThreadRendering;
-    bool RenderJobPending;
     Platform::Semaphore* Sema_RenderStart;
     Platform::Semaphore* Sema_RenderDone;
     Platform::Semaphore* Sema_ScanlineCount;

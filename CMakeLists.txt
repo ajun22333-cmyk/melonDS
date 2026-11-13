@@ -1,138 +1,108 @@
-set (CMAKE_CXX_STANDARD 17)
+cmake_minimum_required(VERSION 3.15)
 
-include(FixInterfaceIncludes)
-
-add_library(core STATIC
-    ARCodeFile.cpp
-    AREngine.cpp
-    ARM.cpp
-    ARM_InstrTable.h
-    ARMInterpreter.cpp
-    ARMInterpreter_ALU.cpp
-    ARMInterpreter_Branch.cpp
-    ARMInterpreter_LoadStore.cpp
-    CP15.cpp
-    CRC32.cpp
-    DMA.cpp
-    DMA_Timings.h
-    DSi.cpp
-    DSi_AES.cpp
-    DSi_Camera.cpp
-    DSi_DSP.cpp
-    DSi_I2C.cpp
-    DSi_NAND.cpp
-    DSi_NDMA.cpp
-    DSi_NWifi.cpp
-    DSi_SD.cpp
-    DSi_SPI_TSC.cpp
-    FATStorage.cpp
-    FIFO.h
-    GBACart.cpp
-    GPU.cpp
-    GPU2D.cpp
-    GPU2D_Soft.cpp
-    GPU3D.cpp
-    GPU3D_Soft.cpp
-    melonDLDI.h
-    NDS.cpp
-    NDSCart.cpp
-    Platform.h
-    ROMList.h
-    FreeBIOS.h
-    RTC.cpp
-    Savestate.cpp
-    SPI.cpp
-    SPU.cpp
-    types.h
-    version.h
-    Wifi.cpp
-    WifiAP.cpp
-
-    fatfs/diskio.c
-    fatfs/ff.c
-    fatfs/ffsystem.c
-    fatfs/ffunicode.c
-    fatfs/ffconf.h
-
-    sha1/sha1.c
-    tiny-AES-c/aes.c
-    xxhash/xxhash.c)
-
-if (ENABLE_OGLRENDERER)
-    target_sources(core PRIVATE
-        GPU_OpenGL.cpp
-        GPU_OpenGL_shaders.h
-        GPU3D_OpenGL.cpp
-        GPU3D_OpenGL_shaders.h
-        OpenGLSupport.cpp)
-
-    target_compile_definitions(core PUBLIC OGLRENDERER_ENABLED)
+cmake_policy(VERSION 3.15)
+if (POLICY CMP0076)
+    cmake_policy(SET CMP0076 NEW)
 endif()
 
-if (ENABLE_JIT)
-    enable_language(ASM)
+set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
 
-    target_sources(core PRIVATE
-        ARM_InstrInfo.cpp
+set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
-        ARMJIT.cpp
-        ARMJIT_Memory.cpp
+project(melonDS
+    VERSION 0.9.5
+    DESCRIPTION "DS emulator, sorta"
+    HOMEPAGE_URL "https://melonds.kuribo64.net"
+    LANGUAGES C CXX)
 
-        dolphin/CommonFuncs.cpp)
+include(CheckSymbolExists)
+include(CheckLibraryExists)
+include(CMakeDependentOption)
+include(CheckIPOSupported)
 
-    if (ARCHITECTURE STREQUAL x86_64)
-        target_sources(core PRIVATE
-            dolphin/x64ABI.cpp
-            dolphin/x64CPUDetect.cpp
-            dolphin/x64Emitter.cpp
+set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum OS X deployment version")
 
-            ARMJIT_x64/ARMJIT_Compiler.cpp
-            ARMJIT_x64/ARMJIT_ALU.cpp
-            ARMJIT_x64/ARMJIT_LoadStore.cpp
-            ARMJIT_x64/ARMJIT_Branch.cpp
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
-            ARMJIT_x64/ARMJIT_Linkage.S)
-    endif()
-    if (ARCHITECTURE STREQUAL ARM64)
-        target_sources(core PRIVATE
-            dolphin/Arm64Emitter.cpp
-            dolphin/MathUtil.cpp
+add_compile_definitions(MELONDS_VERSION="${melonDS_VERSION}")
 
-            ARMJIT_A64/ARMJIT_Compiler.cpp
-            ARMJIT_A64/ARMJIT_ALU.cpp
-            ARMJIT_A64/ARMJIT_LoadStore.cpp
-            ARMJIT_A64/ARMJIT_Branch.cpp
-
-            ARMJIT_A64/ARMJIT_Linkage.S)
-    endif()
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
-add_subdirectory(teakra EXCLUDE_FROM_ALL)
-# Workaround for building teakra with -O0 on Windows either failing or hanging forever
-target_compile_options(teakra PRIVATE "$<$<CONFIG:DEBUG>:-Og>")
-target_link_libraries(core PRIVATE teakra)
+function(detect_architecture symbol arch)
+    if (NOT DEFINED ARCHITECTURE)
+        set(CMAKE_REQUIRED_QUIET 1)
+        check_symbol_exists("${symbol}" "" ARCHITECTURE_${arch})
+        unset(CMAKE_REQUIRED_QUIET)
 
-find_library(m MATH_LIBRARY)
+        # The output variable needs to be unique across invocations otherwise
+        # CMake's crazy scope rules will keep it defined
+        if (ARCHITECTURE_${arch})
+            set(ARCHITECTURE "${arch}" PARENT_SCOPE)
+            set(ARCHITECTURE_${arch} 1 PARENT_SCOPE)
+            add_definitions(-DARCHITECTURE_${arch}=1)
+        endif()
+    endif()
+endfunction()
 
-if (MATH_LIBRARY)
-    target_link_libraries(core PRIVATE ${MATH_LIBRARY})
+detect_architecture("__x86_64__" x86_64)
+detect_architecture("__i386__" x86)
+detect_architecture("__arm__" ARM)
+detect_architecture("__aarch64__" ARM64)
+
+cmake_dependent_option(ENABLE_JIT "Enable JIT recompiler" ON
+    "ARCHITECTURE STREQUAL x86_64 OR ARCHITECTURE STREQUAL ARM64" OFF)
+cmake_dependent_option(ENABLE_JIT_PROFILING "Enable JIT profiling with VTune" OFF "ENABLE_JIT" OFF)
+option(ENABLE_OGLRENDERER "Enable OpenGL renderer" ON)
+
+check_ipo_supported(RESULT IPO_SUPPORTED)
+cmake_dependent_option(ENABLE_LTO_RELEASE "Enable link-time optimizations for release builds" ON "IPO_SUPPORTED" OFF)
+cmake_dependent_option(ENABLE_LTO "Enable link-time optimizations" OFF "IPO_SUPPORTED" OFF)
+
+if (ENABLE_LTO_RELEASE)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
 endif()
 
-if (ENABLE_JIT)
-    target_compile_definitions(core PUBLIC JIT_ENABLED)
+if (ENABLE_LTO)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+endif()
 
-    if (ENABLE_JIT_PROFILING)
-        include(cmake/FindVTune.cmake)
-        add_definitions(-DJIT_PROFILING_ENABLED)
-    endif()
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Og")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Og")
+string(REPLACE "-O2" "-O3" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
+string(REPLACE "-O2" "-O3" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+
+if (NOT APPLE)
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -s")
 endif()
 
 if (WIN32)
-    target_link_libraries(core PRIVATE ole32 comctl32 ws2_32)
-elseif(NOT APPLE)
-    target_link_libraries(core PRIVATE rt)
+    option(BUILD_STATIC "Statically link dependencies" OFF)
 endif()
 
-if (ENABLE_JIT_PROFILING)
-    target_link_libraries(core PRIVATE jitprofiling)
+if (BUILD_STATIC AND WIN32)
+    set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
+endif()
+
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+find_program(CCACHE "ccache")
+if (CCACHE)
+    message(STATUS "Using CCache to speed up compilation")
+    set(CMAKE_C_COMPILER_LAUNCHER ${CCACHE})
+    set(CMAKE_CXX_COMPILER_LAUNCHER ${CCACHE})
+endif()
+
+option(BUILD_QT_SDL "Build Qt/SDL frontend" ON)
+
+add_subdirectory(src)
+
+if (BUILD_QT_SDL)
+    add_subdirectory(src/frontend/qt_sdl)
 endif()
