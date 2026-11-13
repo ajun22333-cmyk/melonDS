@@ -41,6 +41,15 @@ public:
         file->Var32(&ReadPos);
         file->Var32(&WritePos);
 
+        if (file->Error) return;
+        if (NumEntries == 0 || NumOccupied > NumEntries ||
+            ReadPos >= NumEntries || WritePos >= NumEntries ||
+            ((ReadPos + NumOccupied) % NumEntries) != WritePos)
+        {
+            file->Error = true;
+            return;
+        }
+
         file->VarArray(Entries, sizeof(T)*NumEntries);
     }
 
@@ -130,6 +139,15 @@ public:
         file->Var32(&NumOccupied);
         file->Var32(&ReadPos);
         file->Var32(&WritePos);
+
+        if (file->Error) return;
+        if (NumEntries == 0 || NumOccupied > NumEntries ||
+            ReadPos >= NumEntries || WritePos >= NumEntries ||
+            ((ReadPos + NumOccupied) % NumEntries) != WritePos)
+        {
+            file->Error = true;
+            return;
+        }
 
         file->VarArray(Entries, sizeof(T)*NumEntries);
     }
