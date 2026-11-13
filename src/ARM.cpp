@@ -664,7 +664,8 @@ void ARMv5::Execute()
 
     if (Halted == 2)
         Halted = 0;
-    NDS::AddARM9DetailProfile(profileFetchMs, profileExecuteMs, profilePostMs);
+    if (profileDetail)
+        NDS::AddARM9DetailProfile(profileFetchMs, profileExecuteMs, profilePostMs);
 }
 
 #ifdef JIT_ENABLED
