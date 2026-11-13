@@ -53,6 +53,8 @@ Savestate::Savestate(std::string filename, bool save)
 
     Error = false;
     FileSize = 0;
+    file = nullptr;
+    CurSection = 0xFFFFFFFF;
 
     if (save)
     {
